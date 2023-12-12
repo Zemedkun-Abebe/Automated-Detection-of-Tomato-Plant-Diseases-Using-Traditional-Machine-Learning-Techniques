@@ -1,0 +1,1 @@
+# Automated-Detection-of-Tomato-Plant-Diseases-Using-Traditional-Machine-Learning-Techniques
