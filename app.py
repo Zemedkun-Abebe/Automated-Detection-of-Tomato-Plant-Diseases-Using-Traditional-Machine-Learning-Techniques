@@ -2,14 +2,14 @@ import streamlit as st
 import cv2
 import joblib
 import numpy as np
-import pandas as pd
+import pandas as pd  # Added import for pandas
 from skimage.feature import greycomatrix, greycoprops
-import numpy as np
-import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
 
-# Load the trained Random Forest model
-model_filename = 'random_forest_model.joblib'
-random_forest = joblib.load(model_filename)
+# Load the PCA model
+pca_filename = 'random_forest_pca_model.joblib'  # Replace with the actual path to your PCA model file
+pca = joblib.load(pca_filename)
+
 
 # Function to Create a new dataframe
 def create_empty_df():
@@ -39,7 +39,7 @@ def feature_extractor(image):
     image : NumPy array representing the image
 
     Output params:
-    l : Feature vector
+    feature_vector : Feature vector
     '''
 
     try:
@@ -48,7 +48,8 @@ def feature_extractor(image):
         return "Invalid"
 
     # Preprocessing
-    gs = cv2.cvtColor(main_img, cv2.COLOR_RGB2GRAY)
+    resized_img = cv2.resize(main_img, (128, 128))
+    gs = cv2.cvtColor(resized_img, cv2.COLOR_RGB2GRAY)
     blur = cv2.GaussianBlur(gs, (25, 25), 0)
     ret_otsu, im_bw_otsu = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     kernel = np.ones((25, 25), np.uint8)
@@ -56,13 +57,13 @@ def feature_extractor(image):
 
     # Shape features
     contours, _ = cv2.findContours(closing, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    cnt = contours[0]
-    area = cv2.contourArea(cnt)
-    if area == 0:
+    if not contours:
         return "Invalid"
+    cnt = max(contours, key=cv2.contourArea)
+    area = cv2.contourArea(cnt)
     perimeter = cv2.arcLength(cnt, True)
 
-    current_frame = main_img
+    current_frame = resized_img
     filtered_image = closing / 255
 
     # Elementwise Multiplication of range bounded filtered_image with current_frame
@@ -87,19 +88,19 @@ def feature_extractor(image):
     green_mean = np.mean(green_channel)
     blue_mean = np.mean(blue_channel)
 
-    # standard deviation for color feature from the image.
+    # Standard deviation for color feature from the image.
     red_std = np.std(red_channel)
     green_std = np.std(green_channel)
     blue_std = np.std(blue_channel)
 
-    # amt. of green color in the image
+    # Amount of green color in the image
     gr = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     boundaries = [([30, 0, 0], [70, 255, 255])]
     for (lower, upper) in boundaries:
         mask = cv2.inRange(gr, (36, 0, 0), (70, 255, 255))
         ratio_green = cv2.countNonZero(mask) / (img.size / 3)
         f1 = np.round(ratio_green, 2)
-    # amt. of non-green part of the image
+    # Amount of non-green part of the image
     f2 = 1 - f1
 
     # Texture features using grey level co-occurrence matrix
@@ -124,12 +125,13 @@ def feature_extractor(image):
     correlation = greycoprops(g, prop='correlation')
     f8 = correlation[0][0] + correlation[0][1] + correlation[0][2] + correlation[0][3]
 
-    l = [area, perimeter, red_mean, green_mean, blue_mean,
-         f1, f2, red_std, green_std, blue_std,
-         f4, f5, f6, f7, f8]
-    return l
+    feature_vector = [area, perimeter, red_mean, green_mean, blue_mean,
+                      f1, f2, red_std, green_std, blue_std,
+                      f4, f5, f6, f7, f8]
 
-# Function to visualize the provided Image
+    return feature_vector
+
+# Function to visualize the provided Image with a cleaner layout
 def preprocess_and_visualize(image_resized):
     # Convert the image to grayscale
     gs = cv2.cvtColor(image_resized, cv2.COLOR_BGR2GRAY)
@@ -163,36 +165,43 @@ def preprocess_and_visualize(image_resized):
     # Extract features from the foreground based on the mask
     foreground_features = cv2.bitwise_and(image_resized, image_resized, mask=mask)
 
+    # Draw contours on the original image
+    img_with_contours = image_resized.copy()
+    cv2.drawContours(img_with_contours, contours, -1, (0, 255, 0), 3)
+
     # Display images at different stages with contours
     st.subheader('Image Processing Steps')
     
-    # Display the original image
-    st.image(image_resized, caption='Original Image', use_column_width=True)
-
-    # Display other processed images
-    st.image(blurred, caption='Gaussian Blurred Image', use_column_width=True)
-    st.image(edges_canny, caption='Canny Edge Detection', use_column_width=True)
-    st.image(edges_laplacian, caption='Laplacian Edge Detection', use_column_width=True)
-    st.image(im_bw_otsu, caption="Otsu's Thresholding", use_column_width=True)
-    st.image(closing, caption='Morphological Closing', use_column_width=True)
-    st.image(mask, caption='Contour Mask', use_column_width=True)
-    st.image(foreground_features, caption='Foreground Features', use_column_width=True)
     
-    # Draw contours on the original image
-    img_with_contours = image_resized.copy()
-    cv2.drawContours(img_with_contours, contours, -1, (0, 255, 0), 2)
 
-    # Display the original image with contours
+    # Display other processed images in a grid layout
+    cols = st.columns(8)
+    cols[0].image(blurred, caption='Gaussian Blur', use_column_width=True)
+    cols[1].image(edges_canny, caption='Canny Edge', use_column_width=True)
+    cols[2].image(edges_laplacian, caption='Laplacian Edge', use_column_width=True)
+    cols[3].image(im_bw_otsu, caption="Otsu's Thresholding", use_column_width=True)
+    cols[4].image(closing, caption='Morphological Closing', use_column_width=True)
+    cols[5].image(mask, caption='Contour Mask', use_column_width=True)
+    cols[6].image(foreground_features, caption='Foreground Features', use_column_width=True)
+    cols[7].image(img_with_contours, caption='Original with Contours', use_column_width=True)
+
+    # Draw contours on the original image
     st.subheader('Original Image with Contours')
     st.image(img_with_contours, caption='Original Image with Contours', use_column_width=True)
+
+    
 
 # Function to make prediction on new features
 def make_prediction(features):
     # Reshape the features into a 2D array
     features_reshaped = np.array(features).reshape(1, -1)
 
-    # Make predictions on the new features
-    prediction = random_forest.predict(features_reshaped)
+    # Apply PCA to the new features
+    features_pca = pca.transform(features_reshaped)
+
+    # Make predictions on the new PCA-transformed features
+    prediction = random_forest.predict(features_pca)
+
     return prediction[0]
 
 # Streamlit app
@@ -220,7 +229,8 @@ def main():
             preprocess_and_visualize(image_resized)
 
             # Make prediction
-            prediction = make_prediction(features)
+            features_pca = pca.transform(np.array(features).reshape(1, -1))
+            prediction = make_prediction(features_pca)
             st.success(f'Prediction: {prediction}')
 
 if __name__ == '__main__':
