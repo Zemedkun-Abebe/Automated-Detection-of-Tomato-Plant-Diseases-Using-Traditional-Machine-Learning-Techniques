@@ -2,6 +2,7 @@
 ![image](https://github.com/Zemedkun-Abebe/Automated-Detection-of-Tomato-Plant-Diseases-Using-Traditional-Machine-Learning-Techniques/assets/99493026/d9aba6f9-31dd-4ab4-8a07-5561c090ace4)
 
 **Tomato diseases pose a significant threat to agricultural productivity, causing substantial yield losses and economic damage.** Early and accurate identification is crucial for implementing effective control measures and minimizing these impacts. This project leverages traditional machine learning techniques to develop a robust and user-friendly system for **automated detection of tomato plant diseases from leaf images**.
+![image](https://github.com/Zemedkun-Abebe/Automated-Detection-of-Tomato-Plant-Diseases-Using-Traditional-Machine-Learning-Techniques/assets/99493026/84e62ef8-7d7b-4cd7-9e2b-db96121220f2)
 
 **Key Features:**
 
