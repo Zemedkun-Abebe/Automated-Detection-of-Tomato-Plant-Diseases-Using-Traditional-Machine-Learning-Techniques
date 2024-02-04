@@ -1,0 +1,6 @@
+streamlit
+opencv-python
+joblib
+numpy
+scikit-image
+scikit-learn
