@@ -5,5 +5,3 @@ numpy
 pandas  # Added for pandas
 scikit-image
 scikit-learn
-opencv-python
-libgl1-mesa-glx
