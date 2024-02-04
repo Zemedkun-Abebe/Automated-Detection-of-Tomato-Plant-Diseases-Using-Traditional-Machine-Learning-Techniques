@@ -2,5 +2,6 @@ streamlit
 opencv-python
 joblib
 numpy
+pandas  # Added for pandas
 scikit-image
 scikit-learn
