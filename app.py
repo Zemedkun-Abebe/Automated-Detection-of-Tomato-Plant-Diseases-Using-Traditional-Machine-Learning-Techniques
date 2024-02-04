@@ -2,38 +2,12 @@ import streamlit as st
 import cv2
 import joblib
 import numpy as np
-import pandas as pd  # Added import for pandas
 from skimage.feature import greycomatrix, greycoprops
 from sklearn.decomposition import PCA
 
-# Load the PCA model
-pca_filename = 'random_forest_pca_model.joblib'  # Replace with the actual path to your PCA model file
-pca = joblib.load(pca_filename)
-
-
-# Function to Create a new dataframe
-def create_empty_df():
-    df = pd.DataFrame()
-    df['area'] = None
-    df['perimeter'] = None
-    df['red_mean'] = None
-    df['green_mean'] = None
-    df['blue_mean'] = None
-    df['f1'] = None
-    df['f2'] = None
-    df['red_std'] = None
-    df['green_std'] = None
-    df['blue_std'] = None
-    df['f4'] = None
-    df['f5'] = None
-    df['f6'] = None
-    df['f7'] = None
-    df['f8'] = None
-    df['label'] = None
-    return df
-
 # Function to extract the features
 def feature_extractor(image):
+
     '''
     input params: 
     image : NumPy array representing the image
@@ -131,6 +105,7 @@ def feature_extractor(image):
 
     return feature_vector
 
+
 # Function to visualize the provided Image with a cleaner layout
 def preprocess_and_visualize(image_resized):
     # Convert the image to grayscale
@@ -189,49 +164,40 @@ def preprocess_and_visualize(image_resized):
     st.subheader('Original Image with Contours')
     st.image(img_with_contours, caption='Original Image with Contours', use_column_width=True)
 
-    
 
-# Function to make prediction on new features
-def make_prediction(features):
-    # Reshape the features into a 2D array
-    features_reshaped = np.array(features).reshape(1, -1)
+# Load the trained Random Forest model
+model_filename = 'random_forest_pca_model.joblib'
+random_forest = joblib.load(model_filename)
 
-    # Apply PCA to the new features
-    features_pca = pca.transform(features_reshaped)
-
-    # Make predictions on the new PCA-transformed features
-    prediction = random_forest.predict(features_pca)
-
-    return prediction[0]
+# Load the fitted PCA model
+pca = joblib.load('fitted_pca_model.joblib')
 
 # Streamlit app
-def main():
-    st.title('Tomato Disease Prediction App')
+st.title('Tomato Disease Classification')
 
-    # Upload image through Streamlit
-    uploaded_file = st.file_uploader("Choose a tomato leaf image...", type="jpg")
+# Upload image
+uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
 
-    if uploaded_file is not None:
-        # Read image from the uploaded file
-        image = cv2.imdecode(np.frombuffer(uploaded_file.read(), np.uint8), 1)
+if uploaded_file is not None:
+    # Read the uploaded image
+    image = cv2.imdecode(np.fromstring(uploaded_file.read(), np.uint8), 1)
+    
+    # Resize the image for better display
+    image_resized = cv2.resize(image, (256, 256))
+    
+    # Display the uploaded image
+    st.image(image_resized, caption='Uploaded Image', use_column_width=True)
 
-        # Resize the image for better display
-        image_resized = cv2.resize(image, (256, 256))
-
-        # Display the resized image
-        st.image(image_resized, caption='Uploaded Image', use_column_width=True)
-
-        # Preprocess and visualize steps
-        features = feature_extractor(image_resized)
-        if features == 'Invalid':
-            st.warning('Invalid image. Please upload a valid image.')
-        else:
-            preprocess_and_visualize(image_resized)
-
-            # Make prediction
-            features_pca = pca.transform(np.array(features).reshape(1, -1))
-            prediction = make_prediction(features_pca)
-            st.success(f'Prediction: {prediction}')
-
-if __name__ == '__main__':
-    main()
+    preprocess_and_visualize(image_resized)
+    
+    # Extract features from the uploaded image
+    new_features = feature_extractor(image_resized)
+    
+    # Apply PCA to the new features
+    new_features_pca = pca.transform(np.array(new_features).reshape(1, -1))
+    
+    # Make predictions on the new PCA-transformed features
+    prediction = random_forest.predict(new_features_pca)
+    
+    # Display the prediction
+    st.success(f"Prediction: {prediction[0]}")
